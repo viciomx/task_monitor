@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Tarea</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 400px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fefefe;
+        }
+        h1 {
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .cancel-button {
+            background-color: #f44336;
+            margin-top: 10px;
+        }
+        .cancel-button:hover {
+            background-color: #e53935;
+        }
+    </style>
+    <script>
+        window.onload = function() {
+            history.replaceState(null, document.title, location.href);
+        }
+
+        async function guardarTarea(event) {
+            event.preventDefault();
+
+            const taskId = "{{ task.id }}";
+            const url = `http://127.0.0.1:8000/api/task/update/${taskId}/`;
+            
+            const data = {
+                title: document.getElementById("title").value,
+                email: document.getElementById("email").value,
+                description: document.getElementById("description").value
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    window.location.href = "{% url 'demo_table_view' %}";
+                } else {
+                    const errorData = await response.json();
+                    alert("Error: " + errorData.message);
+                }
+            } catch (error) {
+                console.error("Error al guardar la tarea:", error);
+                alert("Ocurrió un error al guardar la tarea.");
+            }
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <h1>Editar Tarea</h1>
+    <form id="edit-task-form" onsubmit="guardarTarea(event)">
+        {% csrf_token %}
+        <div>
+            <label for="title">Título:</label>
+            <input type="text" id="title" name="title" value="{{ task.title }}" required>
+        </div>
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" value="{{ task.email }}" required>
+        </div>
+        <div>
+            <label for="description">Descripción:</label>
+            <textarea id="description" name="description">{{ task.description }}</textarea>
+        </div>
+        <button type="submit">Guardar</button>
+        <button type="button" class="cancel-button" onclick="cancelarEdicion()">Cancelar</button>
+    </form>
+</div>
+
+<script>
+    function cancelarEdicion() {
+        window.location.href = "{% url 'demo_table_view' %}";
+    }
+</script>
+
+</body>
+</html>

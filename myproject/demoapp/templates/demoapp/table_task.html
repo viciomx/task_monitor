@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consumiendo la API de Django</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        button {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .delete-button {
+            background-color: #f44336;
+        }
+        .delete-button:hover {
+            background-color: #e53935;
+        }
+        .create-task-button {
+            background-color: #008CBA;
+            margin-bottom: 20px;
+        }
+        .create-task-button:hover {
+            background-color: #007bb5;
+        }
+        /* Estilos para el botón de salir */
+        .logout-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 5px 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .logout-button:hover {
+            background-color: #e53935;
+        }
+        /* Estilos para el modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .pagination button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Task Monitor</h1>
+
+<!-- Botón para salir -->
+<button class="logout-button" onclick="window.location.href='/login/'">Salir</button>
+
+<!-- Botón para crear una nueva tarea -->
+<button class="create-task-button" onclick="window.location.href='/task/create/'">Crear Tarea</button>
+
+<table id="demoTable">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Email</th>
+            <th>Description</th>
+            <th>Created At</th>
+            <th>Actions</th> <!-- Nueva columna para acciones -->
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Los datos se llenarán aquí -->
+    </tbody>
+</table>
+
+<!-- Paginación -->
+<div class="pagination" id="pagination">
+    <!-- Botones de paginación se agregarán aquí -->
+</div>
+
+<!-- Modal de Confirmación (sin cambios) -->
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeModal">&times;</span>
+        <p>¿Estás seguro de que deseas eliminar esta tarea?</p>
+        <button id="confirmDeleteBtn">Eliminar</button>
+        <button id="cancelDeleteBtn">Cancelar</button>
+    </div>
+</div>
+
+<script>
+    const apiUrl = 'http://127.0.0.1:8000/api/demo/';
+    let currentPage = 1;
+    const rowsPerPage = 9;
+    let data = [];
+
+    fetch(apiUrl, {
+        method: 'GET'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Error en la red');
+        }
+        return response.json();
+    })
+    .then(apiData => {
+        data = apiData; // Guardamos los datos recibidos
+        displayPage(1); // Mostramos la primera página
+        setupPagination();
+    })
+    .catch(error => console.error('Error:', error));
+
+    function displayPage(page) {
+        currentPage = page;
+        const tbody = document.getElementById('demoTable').getElementsByTagName('tbody')[0];
+        tbody.innerHTML = ""; // Limpiamos la tabla antes de llenarla con los nuevos datos
+
+        const startIndex = (page - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        const pageData = data.slice(startIndex, endIndex);
+
+        pageData.forEach(item => {
+            const row = tbody.insertRow();
+            row.insertCell(0).textContent = item.id;
+            row.insertCell(1).textContent = item.title;
+            row.insertCell(2).textContent = item.email;
+            row.insertCell(3).textContent = item.description;
+            row.insertCell(4).textContent = item.created_at;
+
+            // Añadir botón "Editar"
+            const editCell = row.insertCell(5);
+            const editButton = document.createElement('button');
+            editButton.textContent = 'Editar';
+            editButton.onclick = function() {
+                editarTarea(item.id);
+            };
+            editCell.appendChild(editButton);
+
+            // Añadir botón "Eliminar"
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Eliminar';
+            deleteButton.classList.add('delete-button');
+            deleteButton.onclick = function() {
+                confirmarEliminacion(item.id);
+            };
+            editCell.appendChild(deleteButton);
+        });
+    }
+
+    function setupPagination() {
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = ""; // Limpiamos la paginación
+
+        const totalPages = Math.ceil(data.length / rowsPerPage);
+
+        for (let i = 1; i <= totalPages; i++) {
+            const button = document.createElement('button');
+            button.textContent = i;
+            button.onclick = function() {
+                displayPage(i);
+            };
+            if (i === currentPage) {
+                button.style.backgroundColor = "#45a049"; // Resalta la página actual
+            }
+            pagination.appendChild(button);
+        }
+    }
+
+    function editarTarea(id) {
+        window.location.href = `/task/edit/${id}/`;
+    }
+
+    function confirmarEliminacion(id) {
+        taskIdToDelete = id;
+        document.getElementById('confirmModal').style.display = "block";
+    }
+
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        const urlDelete = `http://127.0.0.1:8000/api/task/delete/${taskIdToDelete}/`;
+
+        fetch(urlDelete, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Tarea eliminada con éxito');
+                location.reload();
+            } else {
+                alert('Error al eliminar la tarea');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+
+        document.getElementById('confirmModal').style.display = "none";
+    };
+
+    document.getElementById('closeModal').onclick = function() {
+        document.getElementById('confirmModal').style.display = "none";
+    };
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('confirmModal');
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    };
+
+    document.getElementById('cancelDeleteBtn').onclick = function() {
+        document.getElementById('confirmModal').style.display = "none";
+    };
+</script>
+
+</body>
+</html>
